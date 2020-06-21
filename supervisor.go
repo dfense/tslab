@@ -2,11 +2,11 @@ package tslab
 
 import (
 	"errors"
-	"log"
 	"os"
 	"sync"
 
 	"github.com/dfense/tslab/things"
+	log "github.com/sirupsen/logrus"
 )
 
 // show example of a single instance Supervisor in tslab package
@@ -44,6 +44,7 @@ func Stop(exit bool) {
 	if exit {
 		// stop listener itself and shutdown
 		listener.Stop()
+		log.Debugf("Elvis is leaving the building!")
 		os.Exit(0)
 	}
 }
@@ -69,10 +70,14 @@ func CreateThing(thingtype things.ThingType, qty int) error {
 			log.Printf("batterypack")
 
 		case things.TInverter:
+			inverter := things.NewInverter(getNextID())
 			log.Printf("inverter")
+			listener.SubscribeToThing(inverter)
 
 		case things.TLight:
+			light := things.NewLight(getNextID())
 			log.Printf("light")
+			listener.SubscribeToThing(light)
 
 		default:
 			return errNoThingType

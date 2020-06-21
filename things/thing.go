@@ -33,10 +33,10 @@ const (
 // ThingEvent event that holds things published data
 // It enforces certain fields will be implemented by all things
 type ThingEvent struct {
-	TS        time.Time `json:"ts"`              //  time event was created
-	ThingID   uint64    `json:event_type_count"` // count of each event type that was created. This is unique to each type
-	ThingType string    `json:"thing_type"`      // type of thing that emitted the event
-	EventData string    `json:"event_data"`      // json serialized struct of each event type
+	TS        time.Time   `json:"ts"`               //  time event was created
+	ThingID   uint64      `json:"event_type_count"` // count of each event type that was created. This is unique to each type
+	ThingType string      `json:"thing_type"`       // type of thing that emitted the event
+	EventData interface{} `json:"event_data"`       // json serialized struct of each event type
 }
 
 // CID short description used to display running CIDs (CodeChallenge ID / things)

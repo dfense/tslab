@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/dfense/tslab/things"
 	log "github.com/sirupsen/logrus"
@@ -122,15 +123,15 @@ func (l *Listener) StopThings() {
 // Stop wait for channel to clear, close  writer and exit
 func (l *Listener) Stop() {
 
-	log.Debug("INSIDE STOP")
+	// wait for eventC to be flushed by our io writer
 	for len(l.eventC) > 0 {
-		// wait for eventC to be flushed by our io writer
+		time.Sleep(time.Millisecond * 10)
 	}
-	log.Debug("INSIDE STOP")
+
+	// send interrupt to the running listener loop
 	l.waitGroup.Add(1)
 	l.stopC <- things.ZeroStruct
 	l.waitGroup.Wait()
-	log.Debug("EXIT listener")
 }
 
 // createDefaultWrite creates a default file based io writer
