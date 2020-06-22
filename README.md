@@ -6,20 +6,22 @@ This project will demonstrate a generic use of asynchronous go routines (agents)
 # Quick Start
 Instructions here assume viewer would the source code to evaluate, as well as run the program.
 These instructions were tested on OSX, Linux, and even windows :-)
-Checkout the project from GitHub
+
+checkout the project from GitHub
 ```
 git clone https://github.com/dfense/tslab.git; cd tslab
 ```
-Run the program (this project uses "go mod" so be sure GOPATH is NOT set!)
+run the program <br>
+(this project uses "go mod" so be sure **GOPATH** env variable is **NOT** set!)
  ```
  go run github.com/dfense/tslab/cmd/tslab
  ```
-to build this project  
+build this project  
 ```
 go build github.com/dfense/tslab
 // to see command line options, add param --help
 ```  
-to run tests
+run tests
 ```
 go test github.com/dfense/tslab/... -v
 ```
