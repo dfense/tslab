@@ -13,11 +13,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	maxQuantity = 100
+)
+
 var (
-	errNoCommandEntered = errors.New("incorrect command, try again")
-	errInvalidThingType = errors.New("invalid thing type, try again")
-	errNewThingArgs     = errors.New("wrong number of arguents to nt [new thing] try again")
-	errConvertingToInt  = errors.New("error converting command qty to int, try again")
+	errNoCommandEntered   = errors.New("incorrect command, try again")
+	errInvalidThingType   = errors.New("invalid thing type, try again")
+	errImproperNumberArgs = errors.New("wrong number of arguents to command, try again")
+	errConvertingToInt    = errors.New("error converting param to int, try again")
+	errMaxQtyExceeded     = errors.New("error maximum qty of things to create is (100)")
 
 	lastType = things.TBatteryPack
 )
@@ -34,7 +39,7 @@ func Console() {
 		fmt.Print("Command (h for help): ")
 		command, err := reader.ReadString('\n')
 		if err != nil {
-			log.Printf("error:", err)
+			log.Printf("error: %s\n", err)
 		}
 
 		// convert CRLF to LF
@@ -64,7 +69,7 @@ func printMenu() {
 
 	menu := `
 
-----------------------------------------------------------------
+              TESLA Code Challeng Menu
 Command | Arguments       | Description 
 ----------------------------------------------------------------
    h    |                 | print this help menu
@@ -76,8 +81,8 @@ Command | Arguments       | Description
    sa   |                 | stop all things, do NOT exit program
    q    |                 | quit, stop all things, exit program
 -----------------------------------------------------------------
+valid thing <type> -> [b=battery, i=inverter, l=light]
 
-all valid <type> are [b=battery, i=inverter, l=light]
 `
 	fmt.Println(menu)
 }
@@ -85,6 +90,7 @@ all valid <type> are [b=battery, i=inverter, l=light]
 // processCommand verify and dispatch command from menu
 func processCommand(command string) error {
 
+	command = strings.ToLower(command)
 	c := strings.Fields(command) // simple space delimited parser
 	if len(c) == 0 {
 		return errNoCommandEntered
@@ -124,7 +130,9 @@ func processCommand(command string) error {
 			qty, err := strconv.Atoi(c[2])
 			if err != nil {
 				return errConvertingToInt
-				break
+			}
+			if qty > maxQuantity {
+				return errMaxQtyExceeded
 			}
 
 			thingType, err1 := verifyThingType(c[1])
@@ -134,22 +142,46 @@ func processCommand(command string) error {
 			CreateThing(thingType, qty)
 
 		default:
-			return errNewThingArgs
+			return errImproperNumberArgs
 		}
 
-		fmt.Println("\n--- success: new thing created ---\n")
+		fmt.Println("\n--- success: new thing(s) created ---")
+		fmt.Println("")
 
 	case "sa":
 		Stop(false)
 
 	case "st":
-		fmt.Println("st")
+		switch len(c) {
+		case 2:
+			thingType, err := verifyThingType(c[1])
+			if err != nil {
+				return err
+			}
+			StopThingsByType(thingType)
+			// do it
+		default:
+			return errImproperNumberArgs
+		}
 	case "si":
-		fmt.Println("st")
+		switch len(c) {
+		case 2:
+			id, err := strconv.ParseUint(c[1], 10, 64)
+			if err != nil {
+				return errConvertingToInt
+			}
+			err = StopThingsByCID(id)
+			if err != nil {
+				return err
+			}
+		default:
+			return errImproperNumberArgs
+		}
 	case "q", "stop":
 		Stop(true)
 	default:
 		fmt.Println("\nunrecognized command, try again!")
+		fmt.Println("")
 	}
 
 	return nil

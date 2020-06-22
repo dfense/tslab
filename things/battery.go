@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -36,7 +37,7 @@ var (
 )
 
 // BatteryPack very simple for demo.
-// TODO can model a very accurate simulator enhancement
+// TODO should model a more accurate simulator
 type BatteryPack struct {
 	TTLVoltage  float64       `json:"pack_voltage"` // Total Pack Voltage
 	AmpMeter    AmpMeter      `json:"amp_meter"`    // Keep all current flow information in/out of battery
@@ -44,6 +45,7 @@ type BatteryPack struct {
 	id          uint64        // non serializable id
 	createdTime time.Time     // time the object was created
 	stopC       chan struct{} // internal stopC interupt
+	evtCount    uint64        // number of events generated
 	// Cells []Cell
 }
 
@@ -64,13 +66,17 @@ type Thermistor struct {
 func NewBatteryPack(ID uint64) BatteryPack {
 
 	// generate random data init
-	return BatteryPack{id: ID, createdTime: time.Now(), Therms: make([]Thermistor, 2), stopC: make(chan struct{})}
+	battery := BatteryPack{id: ID, createdTime: time.Now(), Therms: make([]Thermistor, 2), stopC: make(chan struct{})}
+	battery.generateRandomData()
+	return battery
 }
 
 // Emit implements thing interface to send events over Channel
 // c = channel writer for all events
 // wg = waitgroup needs to know when we are done with channel
-func (b BatteryPack) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
+// TODO far too redundant with other Things. Refactor/Reuse
+// Note: Not concurrent safe if multiple Supervisors would ever be required!
+func (b *BatteryPack) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 
 	defer wg.Done() // tell the listener we are done
 	wg.Add(1)
@@ -82,7 +88,7 @@ func (b BatteryPack) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 		return
 	}
 
-	thingType := reflect.TypeOf(b)
+	thingType := reflect.TypeOf(*b)
 EMIT:
 	// Begin start lifecycle of thing
 	for {
@@ -90,6 +96,7 @@ EMIT:
 		case <-time.After(delay):
 
 			// generate random data
+			// lock here down if multiple supervisors required
 			b.generateRandomData()
 
 			// create new event
@@ -97,9 +104,10 @@ EMIT:
 				ThingID:   b.id,
 				TS:        time.Now(),
 				ThingType: thingType.Name(),
-				EventData: b,
+				EventData: *b,
 			}
 			c <- thingEvent
+			atomic.AddUint64(&b.evtCount, 1)
 		case <-b.stopC:
 			break EMIT
 		}
@@ -113,11 +121,11 @@ EMIT:
 
 // ShortD used to give brief data reprentation of this thing. implemnted from things.Thing
 func (b BatteryPack) ShortD() CID {
-	return CID{CidNumber: b.id, Type: reflect.TypeOf(b).Name(), CreateTime: b.createdTime}
+	return CID{CidNumber: b.id, Type: reflect.TypeOf(b).Name(), CreateTime: b.createdTime, TTLEvents: atomic.LoadUint64(&b.evtCount)}
 }
 
-// Close start shutdown sequence
-func (b BatteryPack) Close() {
+// Stop start shutdown sequence
+func (b BatteryPack) Stop() {
 	b.stopC <- ZeroStruct
 }
 

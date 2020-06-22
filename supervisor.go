@@ -16,13 +16,35 @@ var (
 	listener    *Listener
 	nextID      uint64 // the next ID to be assigned to a new thing
 
-	errNoThingType        = errors.New("no thing type by that name")
-	errAlreadyInitialized = errors.New("listener already initialized")
+	errNoThingType            = errors.New("no thing type by that name")
+	errAlreadyInitialized     = errors.New("listener already initialized")
+	ErrInvalidAutoStartOption = errors.New("invalid autostart option")
 )
+
+// ConfigData read in on CLI
+type ConfigData struct {
+	Autostart string
+}
+
+// Initialize process command line parameters and initialize the start of app
+func Initialize(c ConfigData) error {
+
+	switch c.Autostart {
+	case "true":
+		CreateThing(things.TBatteryPack, 1)
+		CreateThing(things.TInverter, 1)
+		CreateThing(things.TLight, 1)
+	case "false":
+
+	default:
+		return ErrInvalidAutoStartOption
+	}
+
+	return nil
+}
 
 // SetListener inject a listener into supervisor
 // listener can only be set at startup.
-// TODO if important to stop and restart, more func can be added
 func SetListener(l *Listener) error {
 	defer slock.Unlock()
 	slock.Lock()
@@ -39,19 +61,23 @@ func SetListener(l *Listener) error {
 // exit = if true stop listener, close channel and io.writer
 //        if false just stop all the things
 func Stop(exit bool) {
-	listener.StopThings()
+	// dispatch stop to listener
+	listener.Stop(exit)
 
 	if exit {
-		// stop listener itself and shutdown
-		listener.Stop()
 		log.Debugf("Elvis is leaving the building!")
 		os.Exit(0)
 	}
 }
 
 // StopThingsByType shut all agents down by type
-func StopThingsByType() {
+func StopThingsByType(tt things.ThingType) error {
+	return listener.StopByType(tt)
+}
 
+// StopThingsByCID shut down all things by CID
+func StopThingsByCID(cid uint64) error {
+	return listener.StopByCID(cid)
 }
 
 // CreateThing create new thing.
@@ -66,18 +92,18 @@ func CreateThing(thingtype things.ThingType, qty int) error {
 			battery := things.NewBatteryPack(getNextID())
 
 			// add to listener
-			listener.SubscribeToThing(battery)
+			listener.SubscribeToThing(&battery)
 			log.Printf("batterypack")
 
 		case things.TInverter:
 			inverter := things.NewInverter(getNextID())
 			log.Printf("inverter")
-			listener.SubscribeToThing(inverter)
+			listener.SubscribeToThing(&inverter)
 
 		case things.TLight:
 			light := things.NewLight(getNextID())
 			log.Printf("light")
-			listener.SubscribeToThing(light)
+			listener.SubscribeToThing(&light)
 
 		default:
 			return errNoThingType

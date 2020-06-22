@@ -3,6 +3,7 @@ package tslab
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,9 @@ var (
 	errJSONDecoding   = "decoding json: %s"
 	errClosingWriter  = "error closing writer: %s"
 	errFlushingBuffer = "error flusing buffer: %s"
+
+	errNoTypeFound = errors.New("no thing(s) with that ThingType found")
+	errIDFound     = errors.New("no thing with that CID found")
 )
 
 // Listener aggregates all events emitted from things
@@ -27,16 +31,18 @@ type Listener struct {
 	writer    io.WriteCloser         // stream to persist all event data
 	eventC    chan things.ThingEvent // all thing events feed into this channel:w
 
-	thingList []things.Thing // base thing type
+	thingList  []things.Thing // base thing type
+	thingsLock *sync.Mutex    // lock anytime we alter table or shutdown
 }
 
 // NewListener initializes a Listener struct and creates instance
 func NewListener() *Listener {
 
 	return &Listener{
-		waitGroup: &sync.WaitGroup{},
-		stopC:     make(chan struct{}),
-		eventC:    make(chan things.ThingEvent, 5),
+		waitGroup:  &sync.WaitGroup{},
+		thingsLock: &sync.Mutex{},
+		stopC:      make(chan struct{}),
+		eventC:     make(chan things.ThingEvent, 5),
 	}
 }
 
@@ -86,6 +92,8 @@ func (l Listener) StartListener() {
 func (l *Listener) SubscribeToThing(t things.Thing) {
 
 	// lock the list
+	defer l.thingsLock.Unlock()
+	l.thingsLock.Lock()
 	l.thingList = append(l.thingList, t) // add thing to list
 	go t.Emit(l.eventC, l.waitGroup)     // start emitting
 }
@@ -96,7 +104,8 @@ func (l Listener) GetThingsShortD() []things.CID {
 
 	cids := make([]things.CID, 0) // create empty list
 
-	// lock the list
+	defer l.thingsLock.Unlock()
+	l.thingsLock.Lock()
 	for _, t := range l.thingList {
 		cids = append(cids, t.ShortD())
 	}
@@ -106,32 +115,95 @@ func (l Listener) GetThingsShortD() []things.CID {
 
 // Stop kills the listener, only after calling stop on all the things and waiting
 // for them to gracefully shutdown
-func (l *Listener) StopThings() {
+func (l *Listener) Stop(exit bool) {
 
-	// turn off new thing add
 	// lock list
+	defer l.thingsLock.Unlock()
+	l.thingsLock.Lock()
+
 	for i, t := range l.thingList {
 		log.Debugf("removeSlice[%d] id[%d]\n", i, t.ShortD().CidNumber)
 		// pop item from list
 		l.thingList = l.thingList[1:]
-		t.Close()
+		t.Stop()
 	}
 	l.waitGroup.Wait() // waiting for semaphore to hit zero
 	log.Debug("WaitGroup returned")
+
+	if exit {
+		// wait for eventC to be flushed by our io writer
+		for len(l.eventC) > 0 {
+			time.Sleep(time.Millisecond * 10)
+		}
+
+		// send interrupt to the running listener loop
+		l.waitGroup.Add(1)
+		l.stopC <- things.ZeroStruct
+		l.waitGroup.Wait()
+	}
 }
 
-// Stop wait for channel to clear, close  writer and exit
-func (l *Listener) Stop() {
+// StopByType stop thing by ThingsType
+// return errNoTypeFound
+func (l *Listener) StopByType(tt things.ThingType) error {
 
-	// wait for eventC to be flushed by our io writer
-	for len(l.eventC) > 0 {
-		time.Sleep(time.Millisecond * 10)
+	defer l.thingsLock.Unlock()
+	l.thingsLock.Lock()
+
+	// additional lookup
+	// convert the string to an enum
+	var tmpTType things.ThingType // temp TType from thing
+
+	i := 0                // current position
+	s := len(l.thingList) // size of slice
+	d := 0                // items deleted
+
+	// remove items as we iterate through the list if they match ThingType
+	for i < s {
+		t := l.thingList[i]
+		switch t.ShortD().Type {
+		case "BatteryPack":
+			tmpTType = things.TBatteryPack
+		case "Inverter":
+			tmpTType = things.TInverter
+		case "Light":
+			tmpTType = things.TLight
+		}
+
+		if tmpTType == tt { // thingtype == commandType
+			l.thingList[i].Stop()
+			l.thingList = append(l.thingList[:i], l.thingList[i+1:]...)
+			s--
+			d++
+		} else {
+			i++
+		}
 	}
 
-	// send interrupt to the running listener loop
-	l.waitGroup.Add(1)
-	l.stopC <- things.ZeroStruct
-	l.waitGroup.Wait()
+	if d == 0 {
+		return errNoTypeFound
+	}
+	return nil
+}
+
+// StopByCID stop thing by CID
+// returns errNoIDFound
+func (l *Listener) StopByCID(cid uint64) error {
+
+	defer l.thingsLock.Unlock()
+	l.thingsLock.Lock()
+	for i, t := range l.thingList {
+		if t.ShortD().CidNumber == cid {
+			t.Stop()
+			if len(l.thingList) > i {
+				l.thingList = append(l.thingList[:i], l.thingList[i+1:]...)
+			} else { // last one in list
+				l.thingList = l.thingList[:i]
+			}
+		}
+	}
+	return nil
+
 }
 
 // createDefaultWrite creates a default file based io writer

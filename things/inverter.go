@@ -3,6 +3,7 @@ package things
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,6 +27,7 @@ type Inverter struct {
 	id          uint64        // non serializable id
 	createdTime time.Time     // time the object was created
 	stopC       chan struct{} // internal stopC interupt
+	evtCount    uint64        // number of events generated
 }
 
 // NewInverter create a battery allocating configuration
@@ -40,8 +42,9 @@ func NewInverter(ID uint64) Inverter {
 // Emit implements thing interface to send events over Channel
 // c = channel writer for all events
 // wg = waitgroup needs to know when we are done with channel
-// CANDIDATE for Composition
-func (i Inverter) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
+// CANDIDATE for Composition -
+// had to use pointer reference since incrementing evtCount
+func (i *Inverter) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 
 	defer wg.Done() // tell the listener we are done
 	wg.Add(1)
@@ -53,11 +56,13 @@ func (i Inverter) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 		return
 	}
 
-	thingType := reflect.TypeOf(i)
+	thingType := reflect.TypeOf(*i)
 EMIT:
 	// Begin start lifecycle of thing
 	for {
 		select {
+
+		// simulate non-deterministic timing
 		case <-time.After(delay):
 
 			// generate random data
@@ -65,12 +70,14 @@ EMIT:
 
 			// create new event
 			thingEvent := ThingEvent{
-				ThingID:   i.id,
+				ThingID:   (*i).id,
 				TS:        time.Now(),
 				ThingType: thingType.Name(),
-				EventData: i,
+				EventData: *i,
 			}
 			c <- thingEvent
+			atomic.AddUint64(&i.evtCount, 1)
+
 		case <-i.stopC:
 			break EMIT
 		}
@@ -84,11 +91,11 @@ EMIT:
 
 // ShortD used to give brief data reprentation of this thing. implemnted from things.Thing
 func (i Inverter) ShortD() CID {
-	return CID{CidNumber: i.id, Type: reflect.TypeOf(i).Name(), CreateTime: i.createdTime}
+	return CID{CidNumber: i.id, Type: reflect.TypeOf(i).Name(), CreateTime: i.createdTime, TTLEvents: atomic.LoadUint64(&i.evtCount)}
 }
 
-// Close start shutdown sequence
-func (i Inverter) Close() {
+// Stop start shutdown sequence
+func (i Inverter) Stop() {
 	i.stopC <- ZeroStruct
 }
 

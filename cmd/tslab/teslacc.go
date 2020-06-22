@@ -13,24 +13,22 @@ import (
 )
 
 const (
-	errProcessingCLI = 1
-	errSettingLogLvl = "error setting log level %s:"
-	errCreatingFile  = "error creating file %s"
+	errProcessingCLI  = 1 // error return code from main
+	errSettingLogLvl  = "error setting log level %s:"
+	errCreatingFile   = "error creating file %s"
+	errCreatingLogDir = "error creating log dir %s"
 
-	logpath   = "log/teslacc.log"
-	eventFile = "log/events.txt"
+	logFile   = "teslacc.log" // file location for logged output from program code
+	eventFile = "events.txt"  // the events database file basename. (uses rollover logging)
+	logPath   = "log"         // directory created for both files above
 )
 
 var (
-	app = kingpin.New("TESLA Code Challenge", "A short async demonstration for concurrency")
 
-	loglevel = kingpin.Flag("loglevel", "Set log level {PANIC, FATAL, ERROR, WARN, INFO, DEBUG}").Short('l').Default("INFO").String()
-
-	// frequency range of agent velocity
-	// swgNic   = kingpin.Flag("interface", "network interface to blast").Short('i').Required().String()
-	swgPulse = kingpin.Flag("pulse", "time between mcast blast").Short('p').Default("10s").Duration()
-	// number of default things to fire off
-	swgPort = kingpin.Flag("swgport", "TCP port to connect session").Short('s').Default("3333").Int()
+	// CLI args
+	app       = kingpin.New("TESLA Code Challenge", "A short async demonstration for concurrency")
+	autoStart = kingpin.Flag("autostart", "start (1) of each thing type {t, true, f, false}").Short('a').Default("true").String()
+	loglevel  = kingpin.Flag("loglevel", "Set log level {PANIC, FATAL, ERROR, WARN, INFO, DEBUG}").Short('l').Default("INFO").String()
 
 	// TODO build data at compile time
 	// version   string
@@ -38,45 +36,66 @@ var (
 	// githash   string
 )
 
-// main simplest CLI client. Expandable to many options
+// main simplest CLI client.
 func main() {
 	kingpin.Parse()
 
 	// set log level, default sys.out
 	setupLogger(*loglevel)
 
-	// catch Ctrl-C on terminal
+	// allow for configuration and injection of items before starting supervisor
+	// this can also be expanded into a richer Confuration object/service/factory
+	configData := tslab.ConfigData{
+		Autostart: *autoStart,
+	}
+
+	// create the io.WriterCloser and inject into listener
+	eventWriter, err := tslab.NewEventWriter(logPath + string(os.PathSeparator) + eventFile)
+	if err != nil {
+		log.Fatalf(errCreatingFile, err)
+	}
+
+	// create a listener to inject
+	listener := tslab.NewListener()
+	listener.SetWriter(eventWriter)
+
+	//inject Listener into supervisor
+	tslab.SetListener(listener)
+	listener.StartListener()
+
+	// initialize Supervisor
+	err = tslab.Initialize(configData)
+	if err != nil {
+		fmt.Printf("Error on Initialize %s\n", err)
+		os.Exit(2)
+	}
+
+	// --- catch Ctrl-C on terminal ----
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	go func() {
-		signalType := <-ch
+		<-ch
 		signal.Stop(ch)
 		fmt.Println("") // clear the terminal ^C
 
 		// stop all things and close out listener
 		tslab.Stop(true)
-		// this is a good place to flush everything to disk
-		// before terminating.
-		log.Println("Signal type : ", signalType)
 		os.Exit(0)
 
 	}()
 
-	// probably should put inside supervisor
-	eventWriter, err := tslab.NewEventWriter(eventFile)
-	if err != nil {
-		log.Fatalf(errCreatingFile, err)
-	}
-	listener := tslab.NewListener()
-	listener.SetWriter(eventWriter)
-	tslab.SetListener(listener)
-	listener.StartListener()
-
+	// create interactive console
 	tslab.Console()
 }
 
+// setupLogger ensure log dir is created/existing, and configure loglevel, and logfile
 func setupLogger(logLevel string) {
+
+	err := os.MkdirAll(logPath, 0744)
+	if err != nil {
+		log.Fatal(errCreatingLogDir, err)
+	}
 
 	level, err := log.ParseLevel(*loglevel)
 	if err != nil {
@@ -87,7 +106,7 @@ func setupLogger(logLevel string) {
 
 	// file writer
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   logpath,
+		Filename:   logPath + string(os.PathSeparator) + logFile,
 		MaxSize:    2,
 		MaxAge:     2,
 		MaxBackups: 5,

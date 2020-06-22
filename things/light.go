@@ -3,6 +3,7 @@ package things
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,8 +20,9 @@ const (
 	maxLL           int = 100  // max LightLevel
 )
 
+// Light defines a luminaire
 type Light struct {
-	LightLevel    byte  `json:"watts"`          // live watt reading (or time buffer)
+	LightLevel    byte  `json:"light_level"`    // live watt reading (or time buffer)
 	ColorSpectrum int16 `json:"color_spectrum"` // color spectrum 2000-6000 CCT
 	State         bool  `json:"state"`          // state = [on, off] (very simple state)
 
@@ -28,6 +30,7 @@ type Light struct {
 	id          uint64        // non serializable id
 	createdTime time.Time     // time the object was created
 	stopC       chan struct{} // internal stopC interupt
+	evtCount    uint64        // number of events generated
 }
 
 // NewLight create a battery allocating configuration
@@ -43,7 +46,7 @@ func NewLight(ID uint64) Light {
 // c = channel writer for all events
 // wg = waitgroup needs to know when we are done with channel
 // CANDIDATE for Composition
-func (l Light) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
+func (l *Light) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 
 	defer wg.Done() // tell the listener we are done
 	wg.Add(1)
@@ -53,7 +56,7 @@ func (l Light) Emit(c chan<- ThingEvent, wg *sync.WaitGroup) {
 		return
 	}
 
-	thingType := reflect.TypeOf(l)
+	thingType := reflect.TypeOf(*l)
 
 	randomTime := RInt(lRandomDelayMin, lRandomDelayMax)
 	delay := time.Duration(randomTime) * time.Millisecond
@@ -72,9 +75,10 @@ EMIT:
 				ThingID:   l.id,
 				TS:        time.Now(),
 				ThingType: thingType.Name(),
-				EventData: l,
+				EventData: *l,
 			}
 			c <- thingEvent
+			atomic.AddUint64(&l.evtCount, 1)
 		case <-l.stopC:
 			break EMIT
 		}
@@ -88,11 +92,11 @@ EMIT:
 
 // ShortD used to give brief data reprentation of this thing. implemnted from things.Thing
 func (l Light) ShortD() CID {
-	return CID{CidNumber: l.id, Type: reflect.TypeOf(l).Name(), CreateTime: l.createdTime}
+	return CID{CidNumber: l.id, Type: reflect.TypeOf(l).Name(), CreateTime: l.createdTime, TTLEvents: atomic.LoadUint64(&l.evtCount)}
 }
 
-// Close start shutdown sequence
-func (l Light) Close() {
+// Stop break Emit loop
+func (l Light) Stop() {
 	l.stopC <- ZeroStruct
 }
 

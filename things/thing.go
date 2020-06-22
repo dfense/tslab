@@ -51,7 +51,7 @@ type CID struct {
 type Thing interface {
 	Emit(chan<- ThingEvent, *sync.WaitGroup) // subscribe to thing events
 	ShortD() CID                             // short discription of thing data
-	Close()                                  // stop sending events, and exit emit()
+	Stop()                                   // stop sending events, and exit emit()
 }
 
 //---------------------------------------------------------
