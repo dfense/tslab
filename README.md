@@ -3,31 +3,25 @@ Exercise performed in GO language for demonstration purposes. The prject exercis
 
 This project will however demonstrate a generic use of asynchronous go routines (agents) and a concurrent safe listener that is managed by a controller. The console will send commands to the controller to execute the control flow. 
 
-## CLI options
-------
-<fill in here>
-
-## Interactive console options
-* Starting the agents 
-* Stopping the agents, some or all
-* List the current state of running agents and their types (good instrumentation candidate, think prometheus)
-
-at anytime after the program starts, type "h" or "help" to get the commands menu
-
 # Quick Start
 Instructions here assume you want the source code to evaluate, as well as run the program.
 Checkout the project from GitHub
-```git clone github.com/dfense/gRPCtemplate```
+```
+git clone github.com/dfense/gRPCtemplate
+```
 Run the program
- ```go run github.com/dfense/tslab```
+ ```
+ go run github.com/dfense/tslab
+ ```
 to build this project, just clone the project, and run  
 ```
 go build github.com/dfense/tslab
 // to see command line options, add param --help
 ```  
 to run tests
-```go test github.com/dfense/tslab/...```
-
+```
+go test github.com/dfense/tslab/...
+```
 
 **need to build for alternate OS or ARM , just add the standard GO environment variables before you build**
 
@@ -92,6 +86,7 @@ Command | Arguments       | Description
 valid thing <type> -> [b=battery, i=inverter, l=light]
 
 Command (h for help): 
+```
 ### li command with running things
 ```
 Command (h for help): li
@@ -125,6 +120,7 @@ Command (h for help): li
 
 Command (h for help): 
 ```
+### CLI with help
 go run github.com/dfense/tslab/cmd/tslab   --help
 usage: tslab [<flags>]
 
@@ -134,16 +130,6 @@ Flags:
   -l, --loglevel="INFO"   Set log level {PANIC, FATAL, ERROR, WARN, INFO, DEBUG}
 ```
 
-### --help CLI
-```
-go run github.com/dfense/tslab/cmd/tslab   --help
-usage: tslab [<flags>]
-
-Flags:
-      --help              Show context-sensitive help (also try --help-long and --help-man).
-  -a, --autostart="true"  start (1) of each thing type {t, true, f, false}
-  -l, --loglevel="INFO"   Set log level {PANIC, FATAL, ERROR, WARN, INFO, DEBUG}
-```
 
 # Worthy of Mention
 * event log has rollover set (const) as 2MB, 2Days
