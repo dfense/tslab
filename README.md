@@ -1,10 +1,10 @@
 # tsla lab
-Exercise performed in GO language for demonstration purposes. The prject exercises the requirement's defined in an external document. This project will not reveal the requirements publically to protect the exercise criteria and the source of the exercise.
+Exercise performed in GO language for demonstration purposes. The project exercises the requirement's defined in an external document. This project will not reveal the requirements publically to protect the exercise criteria and the source of the exercise.
 
-This project will however demonstrate a generic use of asynchronous go routines (agents) and a concurrent safe listener that is managed by a controller. The console will send commands to the controller to execute the control flow. 
+This project will demonstrate a generic use of asynchronous go routines (agents) and a concurrent safe listener that is managed by a controller. The console will send commands to the controller to execute the control flow. 
 
 # Quick Start
-Instructions here assume you want the source code to evaluate, as well as run the program.
+Instructions here assume viewer would the source code to evaluate, as well as run the program.
 Checkout the project from GitHub
 ```
 git clone github.com/dfense/gRPCtemplate
@@ -23,9 +23,9 @@ to run tests
 go test github.com/dfense/tslab/...
 ```
 
-**need to build for alternate OS or ARM , just add the standard GO environment variables before you build**
+*need to build for alternate OS or ARM , just add the standard GO environment variables before you build*
 
-* Note to Reviewers
+## Note to Reviewers
 Special thanks for being allowed to participate in the Code Challange and considerations for the available position on this team at TESLA Energy division. 
 
 The Code Challenge was clever in many ways. It was brief and yet concise in the core intent of the test. It was also abstract and allowed a lot of design 'discussion' to have occurred had this been a normal project with multiple members. The part I would have allocated much more time to, would be upfront discussions of the problem we were trying to solve. This surely would have led to a more aligned perhaps simpler, perhaps more complex, more expandable implementation. 
@@ -40,7 +40,7 @@ The other approach that I struggled not choosing, was to keep it bare bones the 
 
 With that stated, here are a few design improvments, variances, refactors that might be worthy of making notes around. 
 
-## Design Discussions: 
+## Design Discussions/Improvements: 
 * more interface abstraction. interfaces allow for great testability and expansion. Also in GO lang assist greatly in trapping yourself into the ultimate evil of cyclic import errors 
 * test driven up front understanding intent. my minimal test just show the awareness they are critical to good code and maintainability
 * separation of control vs observation in the listener (aggregator)
@@ -121,6 +121,7 @@ Command (h for help): li
 Command (h for help): 
 ```
 ### CLI with help
+```
 go run github.com/dfense/tslab/cmd/tslab   --help
 usage: tslab [<flags>]
 
