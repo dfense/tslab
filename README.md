@@ -7,7 +7,7 @@ This project will demonstrate a generic use of asynchronous go routines (agents)
 Instructions here assume viewer would the source code to evaluate, as well as run the program.
 Checkout the project from GitHub
 ```
-git clone github.com/dfense/gRPCtemplate
+git clone github.com/dfense/tslab
 ```
 Run the program
  ```
