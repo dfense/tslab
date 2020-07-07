@@ -66,7 +66,7 @@ With that stated, here are a few design improvments, variances, refactors that m
 ### Main Menu with "help" command
 ```
 ===========================================================
-||       TESLA Code Challenge                            ||
+||       TSLA Code Challenge                            ||
 ||            v.1.0.0                                    ||
 ===========================================================
 
@@ -74,7 +74,7 @@ With that stated, here are a few design improvments, variances, refactors that m
 Command (h for help): h
 
 
-              TESLA Code Challeng Menu
+              TSLA Code Challeng Menu
 Command | Arguments       | Description 
 ----------------------------------------------------------------
    h    |                 | print this help menu
