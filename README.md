@@ -37,7 +37,7 @@ My assumptions at what was best to demnonstrate on the code submitted, were mult
 
 I wanted to state, i took a chance in exercising many additional options above the standard requirement. Not to try and impress with clevernes, but make a more concrete choice of discussion topics around the review process (assumptions that we have the opportunity to discuss) My goal was still to meet all the original basic requirments, and expand.
 
-The other approach that I struggled not choosing, was to keep it bare bones the simplest choice to still reach the goal. I apologize if i added additional work on reviewers. There is beauty in simplicity. I keep a printed poster in my cubicle at work. A quote from a French novelist in the early-mid 1900s. 
+The other approach that I struggled not choosing, was to keep it bare bones the simplest choice to still reach the goal. I apologize if i added additional work on reviewers. There is beauty in simplicity. I keep a printed poster in my cubicle at work. A quote from a French novelist Antoine de Saint-Exupery in the early-mid 1900s. 
 
 `Perfection is achieved, not when there is nothing more to add, but when there is nothing left to take away.`
 
